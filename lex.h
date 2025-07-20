@@ -7,8 +7,7 @@
 
 #define ENUMERATE_TOKEN_TYPES(X) \
 	X(TOKEN_FN) \
-	X(TOKEN_VOID) \
-	X(TOKEN_I32) \
+	X(TOKEN_TY) \
 	X(TOKEN_UINTLIT) \
 	X(TOKEN_IDENT) \
 	X(TOKEN_RETURN) \
@@ -28,11 +27,21 @@ enum token_type {
 #undef X
 };
 
+enum ty_tag {
+	TY_VOID,
+	TY_I32,
+};
+
+struct ty {
+	enum ty_tag tag;
+};
+
 struct token {
 	enum token_type type;
 	union {
 		str_t ident;
 		uint64_t uintlit;
+		struct ty ty;
 	} as;
 };
 

@@ -7,10 +7,13 @@ CFLAGS = -std=c99 -Wall -Wextra -Wpedantic
 
 obj = \
 	lex.o \
+	parse.o \
 	main.o
 
 headers = \
+	da.h \
 	lex.h \
+	parse.h \
 	str.h
 
 slc: $(obj)

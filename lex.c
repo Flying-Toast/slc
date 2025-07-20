@@ -89,9 +89,11 @@ static void word2tok(str_t word, struct token *out) {
 	if (str_eq(word, STR("fn"))) {
 		out->type = TOKEN_FN;
 	} else if (str_eq(word, STR("void"))) {
-		out->type = TOKEN_VOID;
+		out->type = TOKEN_TY;
+		out->as.ty.tag = TY_VOID;
 	} else if (str_eq(word, STR("i32"))) {
-		out->type = TOKEN_I32;
+		out->type = TOKEN_TY;
+		out->as.ty.tag = TY_I32;
 	} else if (str_eq(word, STR("return"))) {
 		out->type = TOKEN_RETURN;
 	} else {
