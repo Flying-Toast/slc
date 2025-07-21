@@ -7,6 +7,7 @@ void lexer_init(struct lexer *l, FILE *in) {
 	l->peeked.type = INVALID_TOKEN;
 	l->line = 1;
 	l->col = 1;
+	l->ungot = 0;
 }
 
 void lexer_dispose(struct lexer *l) {
@@ -21,23 +22,20 @@ void token_dispose(struct token *t) {
 }
 
 static int lgetc(struct lexer *l) {
-	int ret = fgetc(l->in);
+	int ret;
+
+	if (l->ungot != 0) {
+		ret = l->ungot;
+		l->ungot = 0;
+	} else {
+		ret = fgetc(l->in);
+	}
+
 	if (ret == '\n') {
 		l->line += 1;
 		l->col = 1;
 	} else if (ret != EOF) {
 		l->col += 1;
-	}
-	return ret;
-}
-
-static int lungetc(struct lexer *l, int ch) {
-	int ret = ungetc(ch, l->in);
-	if (ch == '\n') {
-		l->line -= 1;
-		l->col = 123456;
-	} else if (ch != EOF) {
-		l->col -= 1;
 	}
 	return ret;
 }
@@ -55,6 +53,20 @@ static int isidentheadchar(int ch) {
 
 static int isidenttailchar(int ch) {
 	return isidentheadchar(ch) || isdigit(ch);
+}
+
+static void lungetc(struct lexer *l, int ch) {
+	if (l->ungot != 0) {
+		ungetc(l->ungot, l->in);
+	}
+	l->ungot = ch;
+
+	if (ch == '\n') {
+		l->line -= 1;
+		l->col = 123456;
+	} else if (ch != EOF) {
+		l->col -= 1;
+	}
 }
 
 static int lpeekc(struct lexer *l) {
@@ -144,11 +156,19 @@ static int lgetsymb(struct lexer *l, struct token *out) {
 	}
 }
 
-static int lgetuintlit(struct lexer *l, struct token *out) {
-	if (!isdigit(lpeekc(l)))
+static int lgetintlit(struct lexer *l, struct token *out) {
+	int peek = lpeekc(l);
+
+	if (!isdigit(peek) && peek != '-')
 		return 1;
 
-	uint64_t lit = 0, prev = 0;
+	_Bool negative = 0;
+	int64_t lit = 0, prev = 0;
+
+	if (peek == '-') {
+		lgetc(l);
+		negative = 1;
+	}
 
 	while (isdigit(lpeekc(l))) {
 		char dig = lgetc(l);
@@ -161,8 +181,32 @@ static int lgetuintlit(struct lexer *l, struct token *out) {
 		prev = lit;
 	}
 
-	out->type = TOKEN_UINTLIT;
-	out->as.uintlit = lit;
+	if (negative)
+		lit *= -1;
+
+	out->type = TOKEN_INTLIT;
+	out->as.intlit = lit;
+	return 0;
+}
+
+static int lskipcomment(struct lexer *l) {
+	int c1, c2;
+
+	c1 = lgetc(l);
+	c2 = lgetc(l);
+
+	if (c1 == EOF || c2 == EOF)
+		return 1;
+
+	if (c1 != '/' || c2 != '/') {
+		lungetc(l, c2);
+		lungetc(l, c1);
+		return 1;
+	}
+
+	while ((c1 = lgetc(l)) != EOF && c1 != '\n')
+		;
+
 	return 0;
 }
 
@@ -180,6 +224,9 @@ int lexer_next(struct lexer *l, struct token *out) {
 	}
 
 	lskipspace(l);
+	if (lskipcomment(l) == 0)
+		return lexer_next(l, out);
+
 	if (feof(l->in))
 		return 1;
 
@@ -191,7 +238,7 @@ int lexer_next(struct lexer *l, struct token *out) {
 	if (lgetsymb(l, out) == 0)
 		return 0;
 
-	if (lgetuintlit(l, out) == 0) {
+	if (lgetintlit(l, out) == 0) {
 		return 0;
 	}
 

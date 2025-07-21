@@ -3,7 +3,7 @@
 .SUFFIXES: .c .o
 
 CC = clang
-CFLAGS = -std=c99 -Wall -Wextra -Wpedantic
+CFLAGS = -std=c99 -Wall -Wextra -Wpedantic -g
 
 obj = \
 	lex.o \

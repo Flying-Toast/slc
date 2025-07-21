@@ -8,7 +8,7 @@
 #define ENUMERATE_TOKEN_TYPES(X) \
 	X(TOKEN_FN) \
 	X(TOKEN_TY) \
-	X(TOKEN_UINTLIT) \
+	X(TOKEN_INTLIT) \
 	X(TOKEN_IDENT) \
 	X(TOKEN_RETURN) \
 	X(TOKEN_LPAREN) \
@@ -40,7 +40,7 @@ struct token {
 	enum token_type type;
 	union {
 		str_t ident;
-		uint64_t uintlit;
+		int64_t intlit;
 		struct ty ty;
 	} as;
 };
@@ -48,7 +48,8 @@ struct token {
 struct lexer {
 	FILE *in;
 	struct token peeked;
-	size_t line, col;
+	int line, col;
+	int ungot;
 };
 
 void lexer_init(struct lexer *l, FILE *in);

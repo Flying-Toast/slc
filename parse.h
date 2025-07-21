@@ -4,13 +4,47 @@
 #include "lex.h"
 
 struct decl {
-	// TODO: don't leak
+	// XXX: leaked
 	str_t name;
 	struct ty ty;
 };
 
-enum item_type {
-	ITEM_FUNC,
+struct lvalue {
+	str_t ident;
+};
+
+enum expr_tag {
+	EXPR_INTLIT,
+	EXPR_ADD,
+	EXPR_IDENT,
+};
+
+struct expr {
+	enum expr_tag tag;
+	union {
+		int64_t intlit;
+		struct {
+			struct expr *lhs;
+			struct expr *rhs;
+		} add;
+		str_t ident;
+	} as;
+};
+
+enum stmt_tag {
+	STMT_RETURN,
+	STMT_ASSIGN,
+};
+
+struct stmt {
+	enum stmt_tag tag;
+	union {
+		struct expr *return_;
+		struct {
+			struct lvalue lvalue;
+			struct expr *rvalue;
+		} assign;
+	} as;
 };
 
 struct func_item {
@@ -25,6 +59,16 @@ struct func_item {
 	} args;
 
 	struct da_decl stackvars;
+
+	struct da_stmt {
+		struct stmt *ptr;
+		size_t len;
+		size_t cap;
+	} stmts;
+};
+
+enum item_type {
+	ITEM_FUNC,
 };
 
 struct item {

@@ -35,24 +35,86 @@ static _Bool peekis(struct parser *p, enum token_type tok) {
 	return peeked.type == tok;
 }
 
-static void consume1(struct parser *p) {
-	struct token t;
-	lexer_next(&p->l, &t);
-}
-
 static struct decl parse_decl(struct parser *p) {
 	struct decl ret;
 
 	ret.ty = expect(p, TOKEN_TY).as.ty;
-	ret.name = expect(p, TOKEN_IDENT).as.ident;
+	ret.name = str_dup(expect(p, TOKEN_IDENT).as.ident);
 
 	return ret;
+}
+
+static struct expr *parse_expr(struct parser *p) {
+	// XXX: leak
+	struct expr *ret = malloc(sizeof(*ret));
+
+	if (peekis(p, TOKEN_INTLIT)) {
+		ret->tag = EXPR_INTLIT;
+		ret->as.intlit = expect(p, TOKEN_INTLIT).as.intlit;
+		return ret;
+	}
+
+	if (peekis(p, TOKEN_PLUS)) {
+		expect(p, TOKEN_PLUS);
+		ret->tag = EXPR_ADD;
+		expect(p, TOKEN_LPAREN);
+		ret->as.add.lhs = parse_expr(p);
+		expect(p, TOKEN_COMMA);
+		ret->as.add.rhs = parse_expr(p);
+		expect(p, TOKEN_RPAREN);
+		return ret;
+	}
+
+	if (peekis(p, TOKEN_IDENT)) {
+		ret->tag = EXPR_IDENT;
+		ret->as.ident = str_dup(expect(p, TOKEN_IDENT).as.ident);
+		return ret;
+	}
+
+	errx(1, "parse error at %d:%d\n", p->l.line, p->l.col);
+}
+
+static struct expr *parse_return_stmt(struct parser *p) {
+	expect(p, TOKEN_RETURN);
+	struct expr *ret = parse_expr(p);
+	expect(p, TOKEN_SEMICOLON);
+	return ret;
+}
+
+static struct lvalue parse_lvalue(struct parser *p) {
+	struct lvalue ret;
+	ret.ident = str_dup(expect(p, TOKEN_IDENT).as.ident);
+	return ret;
+}
+
+static struct stmt parse_assign(struct parser *p) {
+	struct stmt ret;
+	ret.tag = STMT_ASSIGN;
+
+	ret.as.assign.lvalue = parse_lvalue(p);
+	ret.as.assign.rvalue = parse_expr(p);
+
+	return ret;
+}
+
+static struct stmt parse_stmt(struct parser *p) {
+	struct stmt ret;
+
+	if (peekis(p, TOKEN_RETURN)) {
+		ret.tag = STMT_RETURN;
+		ret.as.return_ = parse_return_stmt(p);
+		return ret;
+	}
+
+	// anything else is assumed an assignment
+	return parse_assign(p);
 }
 
 static void parse_func(struct parser *p, struct func_item *func) {
 	struct token rettok, nametok;
 	da_init(func->args);
 	da_init(func->stackvars);
+	da_init(func->stmts);
 
 	expect(p, TOKEN_FN);
 
@@ -60,7 +122,7 @@ static void parse_func(struct parser *p, struct func_item *func) {
 	func->return_type = rettok.as.ty;
 
 	nametok = expect(p, TOKEN_IDENT);
-	func->name = nametok.as.ident;
+	func->name = str_dup(nametok.as.ident);
 
 	expect(p, TOKEN_LPAREN);
 	if (!peekis(p, TOKEN_RPAREN)) {
@@ -68,7 +130,7 @@ static void parse_func(struct parser *p, struct func_item *func) {
 			da_append(func->args, parse_decl(p));
 
 			if (peekis(p, TOKEN_COMMA))
-				consume1(p);
+				expect(p, TOKEN_COMMA);
 			else
 				break;
 		}
@@ -81,13 +143,14 @@ static void parse_func(struct parser *p, struct func_item *func) {
 	}
 
 	expect(p, TOKEN_LBRACE);
-	///////////////while (!peekis(p, TOKEN_RBRACE)) {
-	///////////////}
+	while (!peekis(p, TOKEN_RBRACE))
+		da_append(func->stmts, parse_stmt(p));
 	expect(p, TOKEN_RBRACE);
 }
 
 int parser_next(struct parser *p, struct item *out) {
 	struct token peek;
+	str_t s;
 
 	if (lexer_peek(&p->l, &peek))
 		return 1;
@@ -98,9 +161,10 @@ int parser_next(struct parser *p, struct item *out) {
 		parse_func(p, &out->as.func);
 		break;
 	default:
-		errx(1, "not start of item: %.*s", toktype2str(peek.type));
+		s = toktype2str(peek.type);
+		errx(1, "not start of item: %.*s", PRSTR(s));
 		break;
 	};
 
-	return 1;
+	return 0;
 }
