@@ -85,5 +85,6 @@ struct parser {
 void parser_init(struct parser *p, FILE *in);
 int parser_next(struct parser *p, struct item *out);
 void parser_dispose(struct parser *p);
+void print_item(const struct item *i);
 
 #endif

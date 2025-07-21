@@ -1,4 +1,6 @@
 #include <err.h>
+#include <inttypes.h>
+#include <stdio.h>
 #include "da.h"
 #include "parse.h"
 
@@ -167,4 +169,100 @@ int parser_next(struct parser *p, struct item *out) {
 	};
 
 	return 0;
+}
+
+static void print_type(const struct ty *ty) {
+	switch (ty->tag) {
+	case TY_I32:
+		printf("i32");
+		break;
+	case TY_VOID:
+		printf("void");
+		break;
+	default:
+		errx(1, "unhandled type %d", ty->tag);
+		break;
+	}
+}
+
+static void print_decl(const struct decl *d) {
+	print_type(&d->ty);
+	printf(" %.*s", PRSTR(d->name));
+}
+
+static void print_expr(const struct expr *e) {
+	switch (e->tag) {
+	case EXPR_ADD:
+		printf("(");
+		print_expr(e->as.add.lhs);
+		printf(") + (");
+		print_expr(e->as.add.rhs);
+		printf(")");
+		break;
+	case EXPR_IDENT:
+		printf("%.*s", PRSTR(e->as.ident));
+		break;
+	case EXPR_INTLIT:
+		printf("%"PRIi64, e->as.intlit);
+		break;
+	default:
+		errx(1, "unhandled expr %d", (int)e->tag);
+		break;
+	}
+}
+
+static void print_lvalue(const struct lvalue *l) {
+	printf("%.*s", PRSTR(l->ident));
+}
+
+static void print_stmt(const struct stmt *s) {
+	switch (s->tag) {
+	case STMT_ASSIGN:
+		print_lvalue(&s->as.assign.lvalue);
+		printf(" = ");
+		print_expr(s->as.assign.rvalue);
+		break;
+	case STMT_RETURN:
+		printf("return ");
+		print_expr(s->as.return_);
+		break;
+	default:
+		errx(1, "unhandled stmt %d", (int)s->tag);
+		break;
+	}
+}
+
+static void print_func(const struct func_item *f) {
+	printf("fn ");
+	print_type(&f->return_type);
+	printf(" %.*s(", PRSTR(f->name));
+	for (size_t i = 0; i < f->args.len; i++) {
+		print_decl(&f->args.ptr[i]);
+		if (i < f->args.len - 1)
+			printf(", ");
+	}
+	printf(")\n");
+	for (size_t i = 0; i <f->stackvars.len; i++) {
+		printf("\t");
+		print_decl(&f->stackvars.ptr[i]);
+		printf(";\n");
+	}
+	printf("{\n");
+	for (size_t i = 0; i < f->stmts.len; i++) {
+		printf("\t");
+		print_stmt(&f->stmts.ptr[i]);
+		printf(";\n");
+	}
+	printf("}\n");
+}
+
+void print_item(const struct item *i) {
+	switch (i->type) {
+	case ITEM_FUNC:
+		print_func(&i->as.func);
+		break;
+	default:
+		errx(1, "unhandled item %d", (int)i->type);
+		break;
+	}
 }
