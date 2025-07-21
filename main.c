@@ -1,21 +1,22 @@
 #include <err.h>
-#include "parse.h"
+#include "gen.h"
 
 int main(int argc, char **argv) {
-	FILE *in;
-	struct parser p;
+	FILE *in, *out;
+	struct codegen cg;
 
-	if (argc != 2)
-		errx(1, "usage: slc <in.c>");
+	if (argc != 2 && argc != 3)
+		errx(1, "usage: slc <in.c> [out.asm]");
 
 	if ((in = fopen(argv[1], "r")) == NULL)
 		err(1, "%s", argv[1]);
 
-	parser_init(&p, in);
+	if (argc == 2)
+		out = stdout;
+	else if ((out = fopen(argv[2], "w")) == NULL)
+		err(1, "%s", argv[2]);
 
-	for (struct item it; parser_next(&p, &it) == 0;) {
-		print_item(&it);
-	}
-
-	parser_dispose(&p);
+	codegen_init(&cg, in, out);
+	codegen_gen(&cg);
+	codegen_dispose(&cg);
 }

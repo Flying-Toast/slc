@@ -179,9 +179,6 @@ static void print_type(const struct ty *ty) {
 	case TY_VOID:
 		printf("void");
 		break;
-	default:
-		errx(1, "unhandled type %d", ty->tag);
-		break;
 	}
 }
 
@@ -205,9 +202,6 @@ static void print_expr(const struct expr *e) {
 	case EXPR_INTLIT:
 		printf("%"PRIi64, e->as.intlit);
 		break;
-	default:
-		errx(1, "unhandled expr %d", (int)e->tag);
-		break;
 	}
 }
 
@@ -225,9 +219,6 @@ static void print_stmt(const struct stmt *s) {
 	case STMT_RETURN:
 		printf("return ");
 		print_expr(s->as.return_);
-		break;
-	default:
-		errx(1, "unhandled stmt %d", (int)s->tag);
 		break;
 	}
 }
@@ -260,9 +251,6 @@ void print_item(const struct item *i) {
 	switch (i->type) {
 	case ITEM_FUNC:
 		print_func(&i->as.func);
-		break;
-	default:
-		errx(1, "unhandled item %d", (int)i->type);
 		break;
 	}
 }

@@ -6,12 +6,14 @@ CC = clang
 CFLAGS = -std=c99 -Wall -Wextra -Wpedantic -g
 
 obj = \
+	gen.o \
 	lex.o \
 	parse.o \
 	main.o
 
 headers = \
 	da.h \
+	gen.h \
 	lex.h \
 	parse.h \
 	str.h
